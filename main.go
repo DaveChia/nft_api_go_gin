@@ -8,6 +8,10 @@ import (
 
 func main() {
 	router := gin.Default()
-	router.GET("/register", controllers.RegisterUser)
+
+    userRepo := controllers.New()
+
+    router.POST("/users", userRepo.CreateUser)
+
 	router.Run("localhost:8080")
 }
