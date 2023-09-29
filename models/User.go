@@ -7,8 +7,8 @@ import (
 type User struct {
 	gorm.Model
 	ID    int 
-	Wallet  string `json:"wallet" binding:"required,max=255,alphanum"`
-	Nric string `json:"nric" binding:"required,max=10,alphanum"`
+	Wallet  string `json:"Wallet" binding:"required,max=255,alphanum"`
+	Nric string `json:"Nric" binding:"required,max=10,alphanum"`
 }
 
 //create a user

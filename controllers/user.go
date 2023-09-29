@@ -1,6 +1,9 @@
 package controllers
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"nft_api_go_gin/database"
 	"nft_api_go_gin/models"
@@ -12,6 +15,18 @@ import (
 type UserRepo struct {
 	Db *gorm.DB
 }
+
+type UserCreatedOutput struct {
+	User    models.User `json:"user"`
+	Receipt string `json:"receipt"`
+}
+
+type UserReceiptHashingBody struct {
+	Wallet string `json:"wallet"`
+	Nric string `json:"nric"`
+}
+
+//create
 
 func New() *UserRepo {
 	db := database.InitDb()
@@ -71,5 +86,34 @@ func (repository *UserRepo) CreateUser(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
-	c.JSON(http.StatusCreated, user)
+
+	body := UserReceiptHashingBody{
+		Wallet : user.Wallet,
+		Nric : user.Nric,
+	}
+
+	jsonString, err := json.Marshal(body)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create a new SHA-256 hasher
+	hasher := sha256.New()
+
+	// Write the data from the request body to the hasher
+	hasher.Write([]byte(jsonString))
+
+	// Calculate the SHA-256 hash
+	hashedData := hasher.Sum(nil)
+
+	// Convert the hashed data to a hexadecimal string
+	receipt := hex.EncodeToString(hashedData)
+	
+	output :=  UserCreatedOutput{
+		User: user,
+		Receipt: receipt,
+	}
+
+	c.JSON(http.StatusCreated, output)
 }
