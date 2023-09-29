@@ -4,11 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"nft_api_go_gin/database"
 	"nft_api_go_gin/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
@@ -34,18 +37,42 @@ func New() *UserRepo {
 	return &UserRepo{Db: db}
 }
 
+type ApiError struct {
+    Field string `json:"field"`
+    Error   string `json:"error"`
+}
+
+func msgForTag(tag string, field string, parameter string) string {
+    switch tag {
+		case "required":
+			return "The " + field + " field is required"
+		case "max":
+			return "The " + field + " field may not be greater than " + parameter + " characters."
+		case "min":
+			return "The " + field + " field must be at least " + parameter + " characters."
+		case "alphanum":
+			return "The " + field + " field may only contain letters or numbers."
+		}
+    return "The " + field + " field is invalid."
+}
+
 //create user
 func (repository *UserRepo) CreateUser(c *gin.Context) {
 
 	var user models.User
 
-	if err:=c.ShouldBindJSON(&user);err!=nil{
-        c.AbortWithStatusJSON(http.StatusBadRequest,
-        gin.H{
-            "error": "VALIDATEERR-1",
-            "message": "Invalid inputs. Please check your inputs"})
+	if err := c.ShouldBind(&user); err != nil {
+		var ve validator.ValidationErrors
+        if errors.As(err, &ve) {
+            out := make([]ApiError, len(ve))
+            for i, fe := range ve {
+				fmt.Println(fe.Param())
+                out[i] = ApiError{fe.Field(), msgForTag(fe.Tag(), fe.Field(), fe.Param())}
+            }
+            c.JSON(http.StatusBadRequest, gin.H{"errors": out})
+        }
         return
-    }
+	}
 
 	var walletFoundCount int
 
