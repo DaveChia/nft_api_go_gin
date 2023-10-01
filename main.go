@@ -45,7 +45,7 @@ func main() {
 
     router.POST("/users", userRepo.CreateUser)
 
-	router.Run(os.Getenv("API_URL"))
+	router.Run(os.Getenv("API_URL") +":" + os.Getenv("API_PORT"))
 }
 
 func corsMiddleware() gin.HandlerFunc {

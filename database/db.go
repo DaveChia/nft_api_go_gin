@@ -8,9 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-
-
-
 var Db *gorm.DB
 func InitDb() *gorm.DB {
 	Db = connectDB()
@@ -24,7 +21,7 @@ func connectDB() (*gorm.DB) {
 	DB_NAME := os.Getenv("DB_NAME")
 	DB_HOST := os.Getenv("DB_HOST")
 	DB_PORT := os.Getenv("DB_PORT")
-	
+
 	var err error
 	dsn := DB_USERNAME +":"+ DB_PASSWORD +"@tcp"+ "(" + DB_HOST + ":" + DB_PORT +")/" + DB_NAME + "?" + "parseTime=true&loc=Local"
 	fmt.Println("dsn : ", dsn)
