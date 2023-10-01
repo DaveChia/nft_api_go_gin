@@ -2,16 +2,14 @@ package database
 
 import (
 	"fmt"
+	"os"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
-const DB_USERNAME = "root"
-const DB_PASSWORD = "Zephyris123$"
-const DB_NAME = "nfts"
-const DB_HOST = "127.0.0.1"
-const DB_PORT = "3306"
+
+
 
 var Db *gorm.DB
 func InitDb() *gorm.DB {
@@ -20,6 +18,13 @@ func InitDb() *gorm.DB {
 }
 
 func connectDB() (*gorm.DB) {
+
+	DB_USERNAME := os.Getenv("DB_USER")
+	DB_PASSWORD := os.Getenv("DB_PASSWORD")
+	DB_NAME := os.Getenv("DB_NAME")
+	DB_HOST := os.Getenv("DB_HOST")
+	DB_PORT := os.Getenv("DB_PORT")
+	
 	var err error
 	dsn := DB_USERNAME +":"+ DB_PASSWORD +"@tcp"+ "(" + DB_HOST + ":" + DB_PORT +")/" + DB_NAME + "?" + "parseTime=true&loc=Local"
 	fmt.Println("dsn : ", dsn)
