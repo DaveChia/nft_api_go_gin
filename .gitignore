@@ -9,6 +9,7 @@
 *.dylib
 .env
 .env.local
+docker-compose.yml
 
 # Test binary, built with `go test -c`
 *.test
