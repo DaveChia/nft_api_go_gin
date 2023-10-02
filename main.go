@@ -19,15 +19,13 @@ func main() {
 		
 	router := gin.Default()
 
-	
+	//	Middleware to setup CORS
 	router.Use(middlewares.SetupCors())
 
 	// Middleware to validate API key
 	router.Use(func(c *gin.Context) {
-		apiKey := c.GetHeader("Authorization")
-		expectedAPIKey := os.Getenv("API_KEY")
 
-		if apiKey != expectedAPIKey {
+		if (middlewares.AuthorizeApiKey(c) == false) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
