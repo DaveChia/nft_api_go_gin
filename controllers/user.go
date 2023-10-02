@@ -1,17 +1,14 @@
 package controllers
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"net/http"
 	"nft_api_go_gin/database"
 	"nft_api_go_gin/models"
+	"nft_api_go_gin/utilities"
+	"nft_api_go_gin/validators"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"gorm.io/gorm"
 )
 
@@ -29,113 +26,90 @@ type UserReceiptHashingBody struct {
 	Nric string `json:"nric"`
 }
 
-//create
-
+//	Initiate the database connection and create the users table automatically if the table has not been created
 func New() *UserRepo {
 	db := database.InitDb()
 	db.AutoMigrate(&models.User{})
 	return &UserRepo{Db: db}
 }
 
-type ApiError struct {
-    Field string `json:"field"`
-    Error   string `json:"error"`
-}
-
-func msgForTag(tag string, field string, parameter string) string {
-    switch tag {
-		case "required":
-			return "The " + field + " field is required"
-		case "max":
-			return "The " + field + " field may not be greater than " + parameter + " characters."
-		case "min":
-			return "The " + field + " field must be at least " + parameter + " characters."
-		case "alphanum":
-			return "The " + field + " field may only contain letters or numbers."
-		}
-    return "The " + field + " field is invalid."
-}
-
-//create user
+//	Record the user's NRIC and wallet address when they mint an NFT
+//	Each user's NRIC can only mint an NFT once
+//	Each user's wallet address can only mint an NFT once
 func (repository *UserRepo) CreateUser(c *gin.Context) {
 
 	var user models.User
 
+	//	Validate the request's form body
+	//	Return an array of validation errors based on the field and error type
+	//	Example:
+	// [
+    //     {
+    //         "field": "Wallet",
+    //         "error": "The Wallet field is required"
+    //     },
+    //     {
+    //         "field": "Nric",
+    //         "error": "The Nric field is required"
+    //     }
+    // ]
 	if err := c.ShouldBind(&user); err != nil {
-		var ve validator.ValidationErrors
-        if errors.As(err, &ve) {
-            out := make([]ApiError, len(ve))
-            for i, fe := range ve {
-				fmt.Println(fe.Param())
-                out[i] = ApiError{fe.Field(), msgForTag(fe.Tag(), fe.Field(), fe.Param())}
-            }
-            c.JSON(http.StatusBadRequest, gin.H{"errors": out})
-        }
+		c.JSON(http.StatusBadRequest, gin.H{"errors": validators.GenerateSplitValidatorErrorMessages(err)})
         return
 	}
 
 	var walletFoundCount int
 
+	//	Check whether the wallet exists in the users, table, return error if it exists since each wallet can only mint an NFT once
 	walletFoundResult := repository.Db.Raw("SELECT COUNT(*) FROM users WHERE wallet = ?", user.Wallet).Scan(&walletFoundCount)
-
 	if walletFoundResult.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": walletFoundResult.Error})
 		return
 	} 
-
 	if (walletFoundCount > 0) {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
 		gin.H{
-			"error": "EXISTWALLET-1",
-			"message": "The wallet exists in our database, please try with another wallet."})
+			"error": "The wallet exists in our database, please try with another wallet."})
 		return
 	}
 
 	var nricFoundCount int
 
+	//	Check whether the nric exists in the users, table, return error if it exists since each nric can only mint an NFT once
 	nricFoundResult := repository.Db.Raw("SELECT COUNT(*) FROM users WHERE nric = ?", user.Nric).Scan(&nricFoundCount)
-
 	if nricFoundResult.Error != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": nricFoundResult.Error})
 		return
 	} 
-
 	if (nricFoundCount > 0) {
 		c.AbortWithStatusJSON(http.StatusBadRequest,
 		gin.H{
-			"error": "EXISTNRIC-1",
-			"message": "The nric exists in our database, please try with another nric."})
+			"error": "The nric exists in our database, please try with another nric."})
 		return
 	}
 
+	//	Insert the row into the database
 	err := models.CreateUser(repository.Db, &user)
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
 	}
 
+	//	Generate the JSON object to be encrypted
 	body := UserReceiptHashingBody{
 		Wallet : user.Wallet,
 		Nric : user.Nric,
 	}
 
+	//	Convert the JSON object into a json string
 	jsonString, err := json.Marshal(body)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	// Create a new SHA-256 hasher
-	hasher := sha256.New()
-
-	// Write the data from the request body to the hasher
-	hasher.Write([]byte(jsonString))
-
-	// Calculate the SHA-256 hash
-	hashedData := hasher.Sum(nil)
-
-	// Convert the hashed data to a hexadecimal string
-	receipt := hex.EncodeToString(hashedData)
+	//	Hash the json string into a sha256 hash as the minting transaction's unique receipt
+	receipt := utilities.Sha256Hashing(jsonString)
 	
 	output :=  UserCreatedOutput{
 		User: user,
