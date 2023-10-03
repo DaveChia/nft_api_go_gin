@@ -8,9 +8,9 @@ services:
     networks:
       - mynetwork
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_USER: dave
-      MYSQL_PASSWORD:
+      MYSQL_ROOT_PASSWORD: passwordroot
+      MYSQL_USER: dbadmin
+      MYSQL_PASSWORD: password123
       MYSQL_DATABASE: nfts
     ports:
       - "3306:3306"
@@ -22,7 +22,5 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8080:8080"
-    depends_on:
-      - db
     networks:
       - mynetwork
